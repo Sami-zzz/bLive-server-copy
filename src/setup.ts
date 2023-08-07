@@ -7,9 +7,18 @@ import { catchErrorMiddle, corsMiddle } from '@/app/app.middleware';
 import { CustomError } from '@/app/customError';
 import { errorHandler } from '@/app/handler/error-handle';
 import { MYSQL_CONFIG } from '@/config/secret';
+import { connectWebSocket } from '@/config/websocket';
 import { PROJECT_ENV, PROJECT_NAME, PROJECT_PORT } from '@/constant';
 import { loadAllRoutes } from '@/router';
 import { chalkSUCCESS, chalkWARN } from '@/utils/chalkTip';
+
+// const app = require('koa')();
+// const server = require('http').createServer(app.callback());
+// const io = require('socket.io')(server);
+// io.on('connection', () => {
+//   /* … */
+// });
+// server.listen(3000);
 
 export async function setupKoa() {
   const port = +PROJECT_PORT;
@@ -41,10 +50,12 @@ export async function setupKoa() {
 
   // http接口服务
   await new Promise((resolve) => {
-    app.listen(port, () => {
+    // 语法糖, 等同于http.createServer(app.callback()).listen(3000);
+    const httpServer = app.listen(port, () => {
       resolve('ok');
     });
-  });
+    connectWebSocket(httpServer); // 初始化websocket
+  }); // http接口服务
   console.log(chalkSUCCESS(`项目启动成功！`));
   console.log(chalkWARN(`监听端口: ${port}`));
   console.log(chalkWARN(`项目名称: ${PROJECT_NAME}`));
