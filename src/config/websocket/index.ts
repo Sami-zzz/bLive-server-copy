@@ -3,8 +3,10 @@ import { Server } from 'socket.io';
 import {
   WsAnswerType,
   WsJoinType,
+  WsLeaveType,
   WsMsgTypeEnum,
   WsOfferType,
+  WsOtherJoinType,
 } from '@/interface-ws';
 import { chalkSUCCESS, chalkWARN } from '@/utils/chalkTip';
 
@@ -19,7 +21,18 @@ export const connectWebSocket = (server) => {
     socket.on(WsMsgTypeEnum.join, (data: WsJoinType) => {
       console.log('收到join', data);
       socket.join(data.data.room_id);
+      // https://socket.io/zh-CN/docs/v4/rooms/#implementation-details
+      const roomsMap = io.of('/').adapter.rooms;
+      const socketList = roomsMap.get(data.data.room_id);
       socket.emit(WsMsgTypeEnum.joined, data);
+      const otherJoinedData: WsOtherJoinType['data'] = {
+        room_id: data.data.room_id,
+        join_socket_id: data.socket_id,
+        socket_list: socketList ? [...socketList] : [],
+      };
+      socket
+        .to(data.data.room_id)
+        .emit(WsMsgTypeEnum.otherJoined, otherJoinedData);
     });
 
     socket.on(WsMsgTypeEnum.offer, (data: WsOfferType) => {
@@ -39,6 +52,12 @@ export const connectWebSocket = (server) => {
 
     socket.on(WsMsgTypeEnum.joined, (data) => {
       console.log('收到joined', data);
+    });
+
+    socket.on(WsMsgTypeEnum.disconnect, (reason) => {
+      console.log('收到disconnect', reason, socket.id);
+      const leaveData: WsLeaveType['data'] = { socket_id: socket.id };
+      io.emit(WsMsgTypeEnum.leave, leaveData);
     });
 
     socket.on(WsMsgTypeEnum.message, (data) => {
